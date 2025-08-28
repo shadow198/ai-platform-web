@@ -11,6 +11,7 @@ export default function Admin(){
   const [schedulers, setSchedulers] = useState([]);
   const [schedulerForm, setSchedulerForm] = useState({ name:'', url:'', cronExpression:'0 */6 * * *', isActive:true, dataType:'RSS' });
   const [form, setForm] = useState({ name:'', category:'text-gen', description:'', site:'#', img:'', free:true, lang:'中文,英文', rating:4.5, tags:'示例' });
+  const [editingToolId, setEditingToolId] = useState(null);
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 
   useEffect(()=>{
@@ -34,6 +35,42 @@ export default function Admin(){
     const { data, errors } = await res.json();
     if(errors){ alert(errors[0].message); return; }
     setTools(prev=>[...prev, data.addTool]);
+  }
+
+  async function loadToolDetails(id){
+    const res = await fetch(API, { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body: JSON.stringify({ query: 'query($id:ID!){ tool(id:$id){ id name category description site img free lang tags rating } }', variables:{ id } }) });
+    const { data, errors } = await res.json();
+    if(errors){ alert(errors[0].message); return; }
+    const t = data.tool;
+    if(!t){ alert('未找到该工具'); return; }
+    setForm({
+      name: t.name||'',
+      category: t.category||'',
+      description: t.description||'',
+      site: t.site||'',
+      img: t.img||'',
+      free: !!t.free,
+      lang: (t.lang||[]).join(','),
+      rating: t.rating ?? 0,
+      tags: (t.tags||[]).join(',')
+    });
+    setEditingToolId(id);
+  }
+
+  async function updateTool(){
+    if(!editingToolId){ return; }
+    const input = { ...form, lang: form.lang.split(',').map(s=>s.trim()).filter(Boolean), tags: form.tags.split(',').map(s=>s.trim()).filter(Boolean), rating: Number(form.rating)||0 };
+    const res = await fetch(API, { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body: JSON.stringify({ query: 'mutation($id:ID!,$i:ToolInput!){ updateTool(id:$id,input:$i){ id name category } }', variables:{ id: editingToolId, i: input } }) });
+    const { data, errors } = await res.json();
+    if(errors){ alert(errors[0].message); return; }
+    setTools(prev=>prev.map(t=>t.id===editingToolId? data.updateTool : t));
+    setEditingToolId(null);
+    setForm({ name:'', category:'text-gen', description:'', site:'#', img:'', free:true, lang:'中文,英文', rating:4.5, tags:'示例' });
+  }
+
+  function cancelEdit(){
+    setEditingToolId(null);
+    setForm({ name:'', category:'text-gen', description:'', site:'#', img:'', free:true, lang:'中文,英文', rating:4.5, tags:'示例' });
   }
 
   async function delTool(id){
@@ -90,7 +127,14 @@ export default function Admin(){
           <label><input type="checkbox" checked={form.free} onChange={e=>setForm(f=>({...f,free:e.target.checked}))}/> 免费</label>
           <textarea placeholder="描述" value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))}/>
         </div>
-        <button onClick={addTool} style={{marginTop:8}}>提交</button>
+        {editingToolId ? (
+          <div style={{display:'flex',gap:8,marginTop:8}}>
+            <button onClick={updateTool}>更新</button>
+            <button onClick={cancelEdit}>取消</button>
+          </div>
+        ) : (
+          <button onClick={addTool} style={{marginTop:8}}>提交</button>
+        )}
       </section>
 
       <section style={{marginTop:24}}>
@@ -99,7 +143,10 @@ export default function Admin(){
           {tools.map(t=>(
             <li key={t.id} style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid #eee',padding:'6px 0'}}>
               <span>{t.name}（{t.category}）</span>
-              <button onClick={()=>delTool(t.id)}>删除</button>
+              <div style={{display:'flex',gap:8}}>
+                <button onClick={()=>loadToolDetails(t.id)}>编辑</button>
+                <button onClick={()=>delTool(t.id)}>删除</button>
+              </div>
             </li>
           ))}
         </ul>
