@@ -1,0 +1,33 @@
+version: '3.9'
+services:
+  postgres:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: aiuser
+      POSTGRES_PASSWORD: aipassword
+      POSTGRES_DB: aidb
+    ports: ["5432:5432"]
+    volumes: [ "pgdata:/var/lib/postgresql/data" ]
+
+  backend:
+    build: ./backend
+    environment:
+      - DATABASE_URL=postgresql://aiuser:aipassword@postgres:5432/aidb?schema=public
+      - PORT=4000
+      - JWT_SECRET=please_change_me
+      - CORS_ORIGIN=http://localhost:3000
+    volumes:
+      - ./backend/uploads:/app/uploads
+    ports: ["4000:4000"]
+    depends_on: [ postgres ]
+
+  frontend:
+    build: ./frontend
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:4000/graphql
+    ports: ["3000:3000"]
+    depends_on: [ backend ]
+
+volumes:
+  pgdata:

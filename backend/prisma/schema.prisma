@@ -1,0 +1,58 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+model Tool {
+  id          Int      @id @default(autoincrement())
+  name        String
+  category    String
+  description String
+  free        Boolean  @default(true)
+  lang        String
+  rating      Float    @default(4.2)
+  tags        String
+  img         String?
+  site        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+model News {
+  id         Int      @id @default(autoincrement())
+  title      String
+  summary    String
+  content    String
+  img        String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Scheduler {
+  id          Int      @id @default(autoincrement())
+  name        String   // 任务名称
+  url         String   // 抓取的URL
+  cronExpression String // cron表达式，如 "0 */6 * * *" 表示每6小时执行一次
+  isActive    Boolean  @default(true) // 是否启用
+  dataType    String   @default("news") // 数据类型：news, tools等
+  lastRun     DateTime? // 上次执行时间
+  nextRun     DateTime? // 下次执行时间
+  status      String   @default("IDLE") // 状态：IDLE, RUNNING, SUCCESS, FAILED
+  errorMessage String? // 错误信息
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum Role {
+  USER
+  ADMIN
+}
